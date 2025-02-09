@@ -1,7 +1,9 @@
 #ifndef CORE_INTERNAL_H
 #define CORE_INTERNAL_H
 
-#include <glib.h>
+#include "types.h"
+#include "package.h"
+#include "analyzer.h"
 #include "../include/venv_analyzer.h"
 
 // Internal core analyzer functions

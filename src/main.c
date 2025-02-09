@@ -2,10 +2,21 @@
 #include "../include/ui/main_window.h"
 #include <gtk/gtk.h>
 
-static void on_activate(GtkApplication* app G_GNUC_UNUSED, 
+static void on_activate(GtkApplication* app, 
                        gpointer user_data G_GNUC_UNUSED) {
-    VenvAnalyzer* analyzer = venv_analyzer_new("");  // Start with empty path
+    VenvAnalyzer* analyzer = venv_analyzer_new("");
+    if (!analyzer) {
+        g_warning("Failed to create analyzer");
+        return;
+    }
+    
     GtkWidget* window = venv_main_window_new(app, analyzer);
+    if (!window) {
+        venv_analyzer_free(analyzer);
+        g_warning("Failed to create main window");
+        return;
+    }
+    
     gtk_window_present(GTK_WINDOW(window));
 }
 

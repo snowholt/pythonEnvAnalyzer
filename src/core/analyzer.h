@@ -67,4 +67,16 @@ AnalyzerError venv_analyzer_update_package(VenvAnalyzer* analyzer,
  */
 const char* venv_analyzer_get_last_error(void);
 
+/**
+ * Updates the package list in the GUI
+ * @return TRUE to remove source, FALSE to keep it
+ */
+gboolean venv_analyzer_update_package_list(VenvAnalyzer* analyzer);
+
+/**
+ * Updates the graph view in the GUI
+ * @return TRUE to remove source, FALSE to keep it
+ */
+gboolean venv_analyzer_update_graph_view(VenvAnalyzer* analyzer);
+
 #endif // CORE_ANALYZER_H

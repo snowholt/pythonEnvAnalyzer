@@ -19,7 +19,7 @@ graphene_dep = dependency('graphene-1.0')
 src_files = files(
     'src/main.c',
     'src/core/analyzer.c',
-    'src/core/package.c',
+    'src/core/package.c',  # Make sure this line exists
     'src/db/database.c',
     'src/ui/main_window.c',
     'src/ui/graph_view.c',

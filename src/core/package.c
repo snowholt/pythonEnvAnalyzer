@@ -1,4 +1,6 @@
 #include "package.h"
+#include "package-private.h"
+// #include "package_conflict.h" // Add this line to include the definition of PackageConflict
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6,6 +8,9 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <glib.h>
+#include <glib/gprintf.h>
+#include <glib/gstdio.h>
 
 #define COMMAND_BUFFER_SIZE 2048
 #define OUTPUT_BUFFER_SIZE 4096
@@ -37,43 +42,118 @@ static char* execute_pip_command(const char* command) {
     return output;
 }
 
-Package* package_new(const char* name, const char* version) {
-    Package* pkg = calloc(1, sizeof(Package));
-    if (!pkg) {
-        snprintf(error_message, sizeof(error_message), "Memory allocation failed");
-        return NULL;
-    }
+#include "../include/venv_analyzer.h"
+#include "types.h"
+#include <string.h>
 
+// Remove the duplicate struct _Package definition since it's already in types.h
+struct _PackageClass {
+    GObjectClass parent_class;
+};
+
+// GObject type registration
+G_DEFINE_TYPE(Package, package, G_TYPE_OBJECT)
+
+static void
+package_init(Package* self)
+{
+    strncpy(self->name, "", MAX_PACKAGE_NAME - 1);
+    strncpy(self->version, "", MAX_VERSION_LEN - 1);
+    strncpy(self->description, "", sizeof(self->description) - 1);  // Initialize description
+    self->size = 0;
+    self->dependencies = NULL;
+    self->conflicts = NULL;
+    self->next = NULL;
+}
+
+static void
+package_finalize(GObject* object)
+{
+    Package* self = PACKAGE_PACKAGE(object);
+    
+    // Free linked list nodes only, not the name/version since they're arrays
+    PackageDep* dep = self->dependencies;
+    while (dep) {
+        PackageDep* next = dep->next;
+        free(dep);  // Don't free name/version since they're arrays
+        dep = next;
+    }
+    
+    PackageDep* conflict = self->conflicts;
+    while (conflict) {
+        PackageDep* next = conflict->next;
+        free(conflict);  // Don't free name/version since they're arrays
+        conflict = next;
+    }
+    
+    G_OBJECT_CLASS(package_parent_class)->finalize(object);
+}
+
+static void
+package_class_init(PackageClass* klass)
+{
+    GObjectClass* object_class = G_OBJECT_CLASS(klass);
+    object_class->finalize = package_finalize;
+}
+
+// Public API Implementation
+
+Package* 
+package_new(const char* name, const char* version)
+{
+    Package* pkg = g_object_new(PACKAGE_TYPE, NULL);
     strncpy(pkg->name, name, MAX_PACKAGE_NAME - 1);
     strncpy(pkg->version, version, MAX_VERSION_LEN - 1);
-    pkg->size = 0;
-    pkg->dependencies = NULL;
-    pkg->conflicts = NULL;
-    pkg->next = NULL;
-
     return pkg;
 }
 
-void package_free(Package* package) {
-    if (!package) return;
+// Accessors
+const char* package_get_name(Package* pkg)
+{
+    g_return_val_if_fail(PACKAGE_IS_PACKAGE(pkg), NULL);
+    return pkg->name;
+}
 
-    // Free dependencies
-    PackageDep* dep = package->dependencies;
-    while (dep) {
-        PackageDep* next = dep->next;
-        free(dep);
-        dep = next;
-    }
+const char* package_get_version(Package* pkg)
+{
+    g_return_val_if_fail(PACKAGE_IS_PACKAGE(pkg), NULL);
+    return pkg->version;
+}
 
-    // Free conflicts
-    dep = package->conflicts;
-    while (dep) {
-        PackageDep* next = dep->next;
-        free(dep);
-        dep = next;
-    }
+const char* package_get_description(Package* pkg)
+{
+    g_return_val_if_fail(PACKAGE_IS_PACKAGE(pkg), NULL);
+    return pkg->description;
+}
 
-    free(package);
+const PackageDep* package_get_dependencies(Package* pkg)
+{
+    g_return_val_if_fail(PACKAGE_IS_PACKAGE(pkg), NULL);
+    return pkg->dependencies;
+}
+
+const PackageDep* package_get_conflicts(Package* pkg)
+{
+    g_return_val_if_fail(PACKAGE_IS_PACKAGE(pkg), NULL);
+    return pkg->conflicts;
+}
+
+gsize package_get_size(Package* pkg)
+{
+    g_return_val_if_fail(PACKAGE_IS_PACKAGE(pkg), 0);
+    return pkg->size;
+}
+
+Package* package_get_next(Package* pkg)
+{
+    g_return_val_if_fail(PACKAGE_IS_PACKAGE(pkg), NULL);
+    return pkg->next;
+}
+
+void package_set_next(Package* pkg, Package* next)
+{
+    g_return_if_fail(PACKAGE_IS_PACKAGE(pkg));
+    pkg->next = next;
 }
 
 bool package_update_size_from_pip(Package* package) {
@@ -90,23 +170,33 @@ bool package_update_size_from_pip(Package* package) {
         char* newline = strchr(location, '\n');
         if (newline) *newline = '\0';
 
-        char path[MAX_PATH_LEN];
-        snprintf(path, sizeof(path), "%s/%s", location, package->name);
+        // Construct path safely using g_build_filename
+        char* pkg_path = g_build_filename(location, package->name, NULL);
+        if (!pkg_path) {
+            free(output);
+            return false;
+        }
 
-        // Calculate directory size
-        char du_command[COMMAND_BUFFER_SIZE];
-        snprintf(du_command, sizeof(du_command), "du -sb %s 2>/dev/null", path);
+        // Use g_build_filename for command construction
+        char* quoted_path = g_shell_quote(pkg_path);
+        char* du_command = g_strdup_printf("du -sb %s 2>/dev/null", quoted_path);
         
         char* size_output = execute_pip_command(du_command);
         if (size_output) {
             package->size = strtoull(size_output, NULL, 10);
             free(size_output);
         }
+
+        g_free(quoted_path);
+        g_free(du_command);
+        g_free(pkg_path);
     }
 
     free(output);
     return true;
 }
+
+
 
 void package_add_dependency(Package* package, const char* name, const char* version) {
     PackageDep* dep = calloc(1, sizeof(PackageDep));
@@ -155,6 +245,30 @@ bool package_version_satisfies(const char* version, const char* requirement) {
     }
 
     return true;  // Versions are equal
+}
+
+
+void package_free(Package* package) {
+    if (!package) return;
+
+    // Free dependencies
+    PackageDep* dep = package->dependencies;
+    while (dep) {
+        PackageDep* next = dep->next;
+        g_free(dep);
+        dep = next;
+    }
+
+    // Free conflicts
+    PackageDep* conflict = package->conflicts;
+    while (conflict) {
+        PackageDep* next = conflict->next;
+        g_free(conflict);
+        conflict = next;
+    }
+
+    // Since we're using GObject, we need to use g_object_unref
+    g_object_unref(package);
 }
 
 VersionCompareResult package_compare_versions(const char* version1, const char* version2) {

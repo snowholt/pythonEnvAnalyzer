@@ -1,15 +1,33 @@
-#ifndef VENV_TYPES_H
-#define VENV_TYPES_H
+#ifndef TYPES_H
+#define TYPES_H
 
-#include "../include/venv_analyzer.h"
+#include <glib.h>
 
-// Only keep the enum definitions and any other non-duplicate types
+#define MAX_PACKAGE_NAME 256
+#define MAX_VERSION_LEN 64
+#define MAX_PATH_LEN 4096  // Add this definition
+
+typedef struct _PackageDep {
+    char name[MAX_PACKAGE_NAME];
+    char version[MAX_VERSION_LEN];
+    struct _PackageDep* next;
+} PackageDep;
+
+typedef struct _Package {
+    char name[MAX_PACKAGE_NAME];
+    char version[MAX_VERSION_LEN];
+    char description[1024];  // Add description field
+    size_t size;
+    PackageDep* dependencies;
+    PackageDep* conflicts;  // Changed from PackageConflict to PackageDep for consistency
+    struct _Package* next;
+} Package;
+
 typedef enum {
-    COL_NAME,
-    COL_VERSION,
-    COL_SIZE,
-    COL_CONFLICTS,
-    N_COLUMNS
-} PackageListColumns;
+    VERSION_ERROR = -1,
+    VERSION_LESS = 0,
+    VERSION_EQUAL = 1,
+    VERSION_GREATER = 2
+} VersionCompareResult;
 
-#endif // VENV_TYPES_H
+#endif // TYPES_H

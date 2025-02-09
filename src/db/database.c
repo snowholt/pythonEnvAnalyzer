@@ -1,15 +1,18 @@
 #include "database.h"
+#include "../core/types.h"
+#include "../core/package.h"
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 static char error_message[256];
 static const char* SCHEMA_FILE = "src/db/schema.sql";
 
+// Helper function to execute SQL from file
 static DbError execute_sql_file(sqlite3* db, const char* filepath) {
     char* sql = NULL;
     char* err_msg = NULL;
     
-    // Read schema file
     FILE* file = fopen(filepath, "r");
     if (!file) {
         snprintf(error_message, sizeof(error_message), 
@@ -22,6 +25,12 @@ static DbError execute_sql_file(sqlite3* db, const char* filepath) {
     fseek(file, 0, SEEK_SET);
     
     sql = malloc(size + 1);
+    if (!sql) {
+        fclose(file);
+        snprintf(error_message, sizeof(error_message), "Memory allocation failed");
+        return DB_ERROR_INIT;
+    }
+    
     size_t read = fread(sql, 1, size, file);
     if (read != (size_t)size) {
         free(sql);
@@ -32,7 +41,6 @@ static DbError execute_sql_file(sqlite3* db, const char* filepath) {
     sql[size] = '\0';
     fclose(file);
     
-    // Execute schema
     if (sqlite3_exec(db, sql, NULL, NULL, &err_msg) != SQLITE_OK) {
         snprintf(error_message, sizeof(error_message),
                 "Schema execution failed: %s", err_msg);
@@ -45,8 +53,7 @@ static DbError execute_sql_file(sqlite3* db, const char* filepath) {
     return DB_SUCCESS;
 }
 
-
-// Add db_init right after the helper function
+// Database initialization
 DbError db_init(VenvAnalyzer* analyzer, const char* db_path) {
     if (!analyzer || !db_path) {
         snprintf(error_message, sizeof(error_message), 
@@ -64,7 +71,77 @@ DbError db_init(VenvAnalyzer* analyzer, const char* db_path) {
     return execute_sql_file(analyzer->db, SCHEMA_FILE);
 }
 
-// Add the missing db_add_dependency function
+// Database cleanup
+void db_close(VenvAnalyzer* analyzer) {
+    if (analyzer && analyzer->db) {
+        sqlite3_close(analyzer->db);
+        analyzer->db = NULL;
+    }
+}
+
+// Transaction management
+DbError db_begin_transaction(VenvAnalyzer* analyzer) {
+    char* err_msg = NULL;
+    if (sqlite3_exec(analyzer->db, "BEGIN TRANSACTION", NULL, NULL, &err_msg) != SQLITE_OK) {
+        snprintf(error_message, sizeof(error_message),
+                "Failed to begin transaction: %s", err_msg);
+        sqlite3_free(err_msg);
+        return DB_ERROR_QUERY;
+    }
+    return DB_SUCCESS;
+}
+
+DbError db_commit(VenvAnalyzer* analyzer) {
+    char* err_msg = NULL;
+    if (sqlite3_exec(analyzer->db, "COMMIT", NULL, NULL, &err_msg) != SQLITE_OK) {
+        snprintf(error_message, sizeof(error_message),
+                "Failed to commit transaction: %s", err_msg);
+        sqlite3_free(err_msg);
+        return DB_ERROR_QUERY;
+    }
+    return DB_SUCCESS;
+}
+
+DbError db_rollback(VenvAnalyzer* analyzer) {
+    char* err_msg = NULL;
+    if (sqlite3_exec(analyzer->db, "ROLLBACK", NULL, NULL, &err_msg) != SQLITE_OK) {
+        snprintf(error_message, sizeof(error_message),
+                "Failed to rollback transaction: %s", err_msg);
+        sqlite3_free(err_msg);
+        return DB_ERROR_QUERY;
+    }
+    return DB_SUCCESS;
+}
+
+// Package operations
+DbError db_insert_package(VenvAnalyzer* analyzer, Package* package) {
+    sqlite3_stmt* stmt;
+    const char* sql = "INSERT OR REPLACE INTO packages (name, version, size) VALUES (?, ?, ?)";
+    
+    if (sqlite3_prepare_v2(analyzer->db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        snprintf(error_message, sizeof(error_message),
+                "Failed to prepare package insert statement: %s",
+                sqlite3_errmsg(analyzer->db));
+        return DB_ERROR_QUERY;
+    }
+    
+    sqlite3_bind_text(stmt, 1, package->name, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 2, package->version, -1, SQLITE_STATIC);
+    sqlite3_bind_int64(stmt, 3, package->size);
+    
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        snprintf(error_message, sizeof(error_message),
+                "Failed to insert package: %s",
+                sqlite3_errmsg(analyzer->db));
+        sqlite3_finalize(stmt);
+        return DB_ERROR_QUERY;
+    }
+    
+    sqlite3_finalize(stmt);
+    return DB_SUCCESS;
+}
+
+// Dependency operations
 DbError db_add_dependency(VenvAnalyzer* analyzer, 
                          const char* package_name,
                          const char* dep_name,
@@ -97,7 +174,6 @@ DbError db_add_dependency(VenvAnalyzer* analyzer,
     return DB_SUCCESS;
 }
 
-// Add function to get dependencies
 GList* db_get_dependencies(VenvAnalyzer* analyzer, const char* package_name) {
     sqlite3_stmt* stmt;
     GList* deps = NULL;
@@ -114,19 +190,18 @@ GList* db_get_dependencies(VenvAnalyzer* analyzer, const char* package_name) {
     
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         PackageDep* dep = g_new0(PackageDep, 1);
-        strncpy(dep->name, (const char*)sqlite3_column_text(stmt, 0), MAX_PACKAGE_NAME - 1);
-        strncpy(dep->version, (const char*)sqlite3_column_text(stmt, 1), MAX_VERSION_LEN - 1);
-        deps = g_list_prepend(deps, dep);
+        if (dep) {
+            strncpy(dep->name, (const char*)sqlite3_column_text(stmt, 0), MAX_PACKAGE_NAME - 1);
+            strncpy(dep->version, (const char*)sqlite3_column_text(stmt, 1), MAX_VERSION_LEN - 1);
+            dep->next = NULL;
+            deps = g_list_prepend(deps, dep);
+        }
     }
     
     sqlite3_finalize(stmt);
     return deps;
 }
 
-// Keep all your existing functions as they are...
-// [Previous functions remain unchanged]
-
-// Add function to remove dependency
 DbError db_remove_dependency(VenvAnalyzer* analyzer,
                            const char* package_name,
                            const char* dep_name) {
@@ -155,4 +230,9 @@ DbError db_remove_dependency(VenvAnalyzer* analyzer,
     
     sqlite3_finalize(stmt);
     return DB_SUCCESS;
+}
+
+// Error handling
+const char* db_get_last_error(void) {
+    return error_message[0] ? error_message : "No error";
 }

@@ -2,22 +2,36 @@
 #define VENV_ANALYZER_H
 
 #include <gtk/gtk.h>
-#include <json-glib/json-glib.h>
 #include <graphviz/gvc.h>
 #include <sqlite3.h>
+#include "../src/core/types.h"  // Add this line
+
+// Constants
+#define MAX_PATH_LEN 4096
+#define MAX_VERSION_LEN 64
+#define MAX_PACKAGE_NAME 256
+#define MAX_DESC_LEN 1024
 
 G_BEGIN_DECLS
 
 // Forward declarations
 typedef struct _Package Package;
 typedef struct _PackageDep PackageDep;
-typedef struct _VenvAnalyzer VenvAnalyzer;
+typedef struct _PackageConflict PackageConflict;
 
-// Maximum lengths
-#define MAX_PACKAGE_NAME 256
-#define MAX_VERSION_LEN 64
-#define MAX_PATH_LEN 1024
-#define MAX_DESC_LEN 1024
+// Main analyzer structure
+typedef struct {
+    char venv_path[MAX_PATH_LEN];
+    Package* packages;
+    GVC_t* gvc;  // Changed from GvContext to GVC_t
+    sqlite3* db;
+    
+    // GUI components
+    GtkWidget* status_bar;
+    GtkWidget* details_view;
+    GListStore* package_store;
+    GtkSelectionModel* selection_model;
+} VenvAnalyzer;
 
 // Error domains
 #define VENV_ANALYZER_ERROR (venv_analyzer_error_quark())
@@ -37,36 +51,6 @@ typedef enum {
     PACKAGE_FILTER_DEPS = 1 << 1,
     PACKAGE_FILTER_CONFLICTS = 1 << 2
 } PackageFilterFlags;
-
-// Package dependency structure
-struct _PackageDep {
-    char name[MAX_PACKAGE_NAME];
-    char version[MAX_VERSION_LEN];
-    PackageDep* next;
-};
-
-// Package structure
-struct _Package {
-    char name[MAX_PACKAGE_NAME];
-    char version[MAX_VERSION_LEN];
-    char description[MAX_DESC_LEN];
-    size_t size;
-    PackageDep* dependencies;
-    PackageDep* conflicts;
-    Package* next;
-};
-
-// Main analyzer structure
-struct _VenvAnalyzer {
-    char venv_path[MAX_PATH_LEN];
-    Package* packages;
-    GVC_t* gvc;          // Add GraphViz context
-    sqlite3* db;         // Add SQLite database handle
-    GtkWidget* status_bar;
-    GtkWidget* details_view;
-    GListStore* package_store;
-    GtkSelectionModel* selection_model;
-};
 
 // Core functions
 VenvAnalyzer*   venv_analyzer_new         (const char* venv_path);

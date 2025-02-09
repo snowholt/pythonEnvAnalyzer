@@ -73,44 +73,66 @@ bind_list_factory(GtkListItemFactory* factory G_GNUC_UNUSED,
     }
 }
 
-GtkWidget*
-package_list_new(VenvAnalyzer* analyzer)  // Changed from venv_package_list_new
-{
-    GListStore* store = g_list_store_new(PACKAGE_TYPE_ITEM);
+GtkWidget* package_list_new(VenvAnalyzer* analyzer) {
+    // Create scrolled window to contain the list
+    GtkWidget* scrolled = gtk_scrolled_window_new();
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled),
+                                 GTK_POLICY_NEVER,
+                                 GTK_POLICY_AUTOMATIC);
+
+    // Create the list box
+    GtkWidget* list_box = gtk_list_box_new();
+    gtk_widget_add_css_class(list_box, "package-list");
     
-    GtkSelectionModel* selection = GTK_SELECTION_MODEL(
-        gtk_single_selection_new(G_LIST_MODEL(store)));
-    
-    GtkListItemFactory* factory = gtk_signal_list_item_factory_new();
-    g_signal_connect(factory, "setup", G_CALLBACK(setup_list_factory), NULL);
-    g_signal_connect(factory, "bind", G_CALLBACK(bind_list_factory), NULL);
-    
-    GtkWidget* list = gtk_list_view_new(selection, factory);
-    gtk_widget_set_vexpand(list, TRUE);
+    // Add list box to scrolled window
+    gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scrolled), list_box);
     
     // Store references
-    g_object_set_data(G_OBJECT(list), "store", store);
-    g_object_set_data(G_OBJECT(list), "analyzer", analyzer);
+    g_object_set_data(G_OBJECT(scrolled), "list-box", list_box);
+    g_object_set_data(G_OBJECT(scrolled), "analyzer", analyzer);
     
-    package_list_update(list, analyzer);  // Changed from venv_package_list_update
-    return list;
+    // Initialize the list
+    package_list_update(scrolled, analyzer);
+    
+    return scrolled;
 }
 
-void
-package_list_update(GtkWidget* list, VenvAnalyzer* analyzer)  // Changed from venv_package_list_update
-{
-    g_return_if_fail(GTK_IS_LIST_VIEW(list));
+void package_list_update(GtkWidget* widget, VenvAnalyzer* analyzer) {
+    g_return_if_fail(GTK_IS_SCROLLED_WINDOW(widget));
     
-    GListStore* store = g_object_get_data(G_OBJECT(list), "store");
-    g_return_if_fail(G_IS_LIST_STORE(store));
+    GtkWidget* list_box = g_object_get_data(G_OBJECT(widget), "list-box");
+    g_return_if_fail(GTK_IS_LIST_BOX(list_box));
     
-    g_list_store_remove_all(store);
+    // Remove existing rows
+    GtkWidget* child;
+    while ((child = gtk_widget_get_first_child(list_box)) != NULL) {
+        gtk_list_box_remove(GTK_LIST_BOX(list_box), child);
+    }
     
+    // Add new rows for each package
     for (Package* pkg = analyzer->packages; pkg; pkg = pkg->next) {
-        PackageItem* item = g_object_new(PACKAGE_TYPE_ITEM, NULL);
-        item->package = pkg;
-        g_list_store_append(store, item);
-        g_object_unref(item);
+        GtkWidget* row = gtk_list_box_row_new();
+        GtkWidget* box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+        
+        gtk_widget_set_margin_start(box, 6);
+        gtk_widget_set_margin_end(box, 6);
+        gtk_widget_set_margin_top(box, 3);
+        gtk_widget_set_margin_bottom(box, 3);
+        
+        GtkWidget* name_label = gtk_label_new(pkg->name);
+        GtkWidget* version_label = gtk_label_new(pkg->version);
+        
+        gtk_label_set_xalign(GTK_LABEL(name_label), 0);
+        gtk_widget_set_hexpand(name_label, TRUE);
+        gtk_label_set_xalign(GTK_LABEL(version_label), 1);
+        
+        gtk_box_append(GTK_BOX(box), name_label);
+        gtk_box_append(GTK_BOX(box), version_label);
+        
+        gtk_list_box_row_set_child(GTK_LIST_BOX_ROW(row), box);
+        g_object_set_data(G_OBJECT(row), "package", pkg);
+        
+        gtk_list_box_append(GTK_LIST_BOX(list_box), row);
     }
 }
 

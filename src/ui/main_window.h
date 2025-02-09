@@ -7,9 +7,9 @@
 typedef struct {
     GtkWidget* window;
     GtkWidget* details_view;
-    VenvAnalyzer* analyzer;
     GtkWidget* package_list;
     GtkWidget* graph_view;
+    VenvAnalyzer* analyzer;
 } MainWindow;
 
 // Signal handlers
