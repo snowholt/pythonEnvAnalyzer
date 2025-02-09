@@ -1,0 +1,27 @@
+Source: venv-analyzer
+Section: devel
+Priority: optional
+Maintainer: Nariman Jafarieshlaghi <jafari.nariman@gmail.com>
+Build-Depends: debhelper-compat (= 13),
+               meson,
+               ninja-build,
+               pkg-config,
+               libgtk-4-dev,
+               libjson-glib-dev,
+               libgraphviz-dev,
+               libsqlite3-dev
+
+Package: venv-analyzer
+Architecture: any
+Depends: ${shlibs:Depends},
+         ${misc:Depends},
+         python3,
+         graphviz,
+         sqlite3
+Description: Python Virtual Environment Dependency Analyzer
+ A GTK4-based tool for analyzing dependencies in Python
+ virtual environments. Features include:
+  * Visualization of package dependencies
+  * Detection of conflicts
+  * Size analysis of installed packages
+  * Export capabilities for dependency graphs

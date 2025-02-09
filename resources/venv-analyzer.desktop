@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Venv Analyzer
+Comment=Python Virtual Environment Dependency Analyzer
+Exec=venv-analyzer
+Icon=venv-analyzer
+Categories=Development;
+Keywords=python;virtualenv;dependencies;analyzer;
+StartupNotify=true

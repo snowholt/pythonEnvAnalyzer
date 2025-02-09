@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <template class="VenvAnalyzerWindow" parent="GtkApplicationWindow">
+    <property name="title">Venv Analyzer</property>
+    <property name="default-width">1000</property>
+    <property name="default-height">600</property>
+    
+    <child type="titlebar">
+      <object class="GtkHeaderBar">
+        <child type="start">
+          <object class="GtkButton" id="open_button">
+            <property name="icon-name">folder-open-symbolic</property>
+            <property name="tooltip-text">Open Virtual Environment</property>
+          </object>
+        </child>
+        <child type="start">
+          <object class="GtkButton" id="refresh_button">
+            <property name="icon-name">view-refresh-symbolic</property>
+            <property name="tooltip-text">Refresh Dependencies</property>
+          </object>
+        </child>
+        <child type="end">
+          <object class="GtkMenuButton" id="menu_button">
+            <property name="icon-name">open-menu-symbolic</property>
+            <property name="menu-model">app_menu</property>
+          </object>
+        </child>
+      </object>
+    </child>
+    
+    <child>
+      <object class="GtkBox" id="main_box">
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkPaned" id="main_paned">
+            <property name="orientation">horizontal</property>
+            <property name="position">300</property>
+            <property name="wide-handle">true</property>
+            <child>
+              <object class="GtkBox">
+                <property name="orientation">vertical</property>
+                <style>
+                  <class name="sidebar"/>
+                </style>
+                <child>
+                  <object class="GtkSearchEntry" id="search_entry">
+                    <property name="placeholder-text">Search packages...</property>
+                    <property name="margin-start">6</property>
+                    <property name="margin-end">6</property>
+                    <property name="margin-top">6</property>
+                    <property name="margin-bottom">6</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkStatusbar" id="statusbar">
+            <style>
+              <class name="statusbar"/>
+            </style>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

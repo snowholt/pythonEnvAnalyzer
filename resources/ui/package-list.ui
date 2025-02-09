@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <template class="VenvPackageList" parent="GtkBox">
+    <property name="orientation">vertical</property>
+    <style>
+      <class name="package-list"/>
+    </style>
+    
+    <child>
+      <object class="GtkListBox" id="list_box">
+        <property name="selection-mode">single</property>
+        <property name="show-separators">true</property>
+        <style>
+          <class name="content"/>
+        </style>
+      </object>
+    </child>
+  </template>
+</interface>

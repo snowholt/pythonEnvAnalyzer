@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="16" height="16" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(0,0)">
+    <!-- Folder -->
+    <path d="M2,3 h5 l2,2 h5 v8 h-12 z" 
+          fill="currentColor"/>
+    <!-- Python symbol -->
+    <path d="M8,7 l2,1 v2 l-4,2 l-2,-1 v-2 z" 
+          fill="#fff" fill-opacity="0.8"/>
+  </g>
+</svg>

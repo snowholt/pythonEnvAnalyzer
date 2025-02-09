@@ -1,0 +1,36 @@
+.main-window {
+    background-color: @theme_base_color;
+}
+
+.package-list {
+    background: @theme_base_color;
+    border-right: 1px solid @borders;
+}
+
+.graph-view {
+    background: @theme_base_color;
+    padding: 12px;
+}
+
+.dependencies-list {
+    background: transparent;
+    margin-top: 12px;
+}
+
+.title-1 {
+    font-weight: bold;
+    font-size: 1.2em;
+}
+
+.subtitle-1 {
+    opacity: 0.8;
+}
+
+.conflict {
+    color: @error_color;
+}
+
+.statusbar {
+    padding: 4px;
+    border-top: 1px solid @borders;
+}

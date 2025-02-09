@@ -1,0 +1,11 @@
+venv-analyzer (0.1.0-1) unstable; urgency=medium
+
+  * Initial release
+  * Features:
+    - GTK4-based user interface
+    - Dependency graph visualization
+    - Package conflict detection
+    - Size analysis of installed packages
+    - SQLite database for caching
+
+ -- Your Name <your.email@example.com>  Thu, 01 Feb 2024 12:00:00 +0000
