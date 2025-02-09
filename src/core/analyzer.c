@@ -46,6 +46,14 @@ static char* execute_pip_command(const char* venv_path, const char* command) {
         return NULL;
     }
     
+    // Only return if we have actual output
+    if (!stdout_data || strlen(stdout_data) == 0) {
+        g_free(stdout_data);
+        g_snprintf(error_buffer, sizeof(error_buffer),
+                  "Command returned no output");
+        return NULL;
+    }
+    
     g_free(stderr_data);
     return stdout_data;
 }
@@ -144,11 +152,19 @@ static void analyze_package_dependencies(VenvAnalyzer* analyzer, Package* packag
     g_free(output);
 }
 
-gboolean
-venv_analyzer_scan(VenvAnalyzer* analyzer, GError** error)
-{
+gboolean venv_analyzer_scan(VenvAnalyzer* analyzer, GError** error) {
+    if (!analyzer->venv_path[0]) {
+        g_set_error(error, G_FILE_ERROR, G_FILE_ERROR_NOENT,
+                   "No virtual environment path set");
+        return FALSE;
+    }
+
     char* output = execute_pip_command(analyzer->venv_path, "freeze");
-    if (!output) return -1;
+    if (!output) {
+        g_set_error(error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                   "Failed to get package list: %s", venv_analyzer_get_last_error());
+        return FALSE;
+    }
     
     // Clear existing packages
     Package* pkg = analyzer->packages;
@@ -159,20 +175,12 @@ venv_analyzer_scan(VenvAnalyzer* analyzer, GError** error)
     }
     analyzer->packages = NULL;
     
-    // Parse pip freeze output
     parse_pip_freeze(analyzer, output);
     g_free(output);
     
-    // Analyze dependencies for each package
     for (pkg = analyzer->packages; pkg; pkg = pkg->next) {
         analyze_package_dependencies(analyzer, pkg);
         package_update_size_from_pip(pkg);
-    }
-    
-    if (!analyzer->venv_path[0]) {
-        g_set_error(error, G_FILE_ERROR, G_FILE_ERROR_NOENT,
-                   "No virtual environment path set");
-        return FALSE;
     }
     
     return TRUE;
